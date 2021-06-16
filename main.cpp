@@ -45,6 +45,7 @@ void remove_from_GPS_after_write_to_file(int finish_time);
 
 
 float round_of_last_event = 0;
+float round_current = 0;
 
 tuple<float, float> arrival_state;
 
@@ -380,6 +381,7 @@ void handle_wfq(int arrival_time)
 					it_sorted->print();
 					*/
 					enqueue_packet(it_sorted);
+					break;
 					//cout << "\ncalculated transmission start:	sorted_packets.empty()\n" << wfq.front().time_of_transmission_start << endl;
 				}
 
@@ -403,6 +405,7 @@ void handle_wfq(int arrival_time)
 					*/
 
 					enqueue_packet(it_sorted);
+					break;
 					
 					//cout << "\ncalculated transmission start:	sorted_packets.empty()\n" << wfq.front().time_of_transmission_start << endl;
 				}
@@ -424,6 +427,7 @@ void handle_wfq(int arrival_time)
 					*/
 
 					enqueue_packet(it_sorted);
+					break;
 					//cout << "\ncalculated transmission start:	sorted_packets.empty()\n" << wfq.front().time_of_transmission_start << endl;
 				}
 			}
@@ -453,7 +457,7 @@ void handle_wfq(int arrival_time)
 			//here - the arrival is after or with the first departure from the GPS.
 			while (sorted_packets.front().last <= get<ROUND>(arrival_state))
 			{
-				time_of_last_event += get_time_delta_of_departure(sorted_packets.front());
+				time_of_last_event = sorted_packets.front().arrival_time + get_time_delta_of_departure(sorted_packets.front());
 				round_of_last_event = sorted_packets.front().last;
 				if (sorted_packets.front().queued)
 				{
