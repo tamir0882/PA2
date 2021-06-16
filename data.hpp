@@ -16,10 +16,18 @@ enum info_tuple_index {
 	UPDATE_WEIGHT
 };
 
-enum arrival_state_index
-{
-	ROUND,
-	WEIGHTS_SUM
+
+enum event_type {
+
+	ARRIVAL,
+	MIN_LAST,
+	DEPARTURE
+};
+
+enum current_event_params {
+	TYPE,
+	TIME,
+	ROUND
 };
 
 

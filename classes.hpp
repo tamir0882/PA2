@@ -62,22 +62,22 @@ public:
 		this->connection = connection;
 		this->weight_given = weight_given;
 		this->last = 0;
-		queued = false;
-		sum_weights_at_arrival = DEFAULT_WEIGHT;
-		arrival_round = 0;
-		time_of_transmission_start = arrival_time;
+		this->queued = false;
+		this->sum_weights_at_arrival = DEFAULT_WEIGHT;
+		this->arrival_round = 0;
+		this->time_of_transmission_start = arrival_time;
 	}
 
 	//lt operator for packets from different conections
 	bool operator< (packet const& pckt)
 	{
-		if (last < pckt.last)
+		if (this->last < pckt.last)
 		{
 			return true;
 		}
-		else if (last == pckt.last)
+		else if (this->last == pckt.last)
 		{
-			return initial_connection_arrival_time < pckt.initial_connection_arrival_time;
+			return this->initial_connection_arrival_time < pckt.initial_connection_arrival_time;
 		}
 		else
 			return false;
@@ -87,13 +87,13 @@ public:
 	//gt operator for packets from different conections
 	bool operator>(packet const& pckt)
 	{
-		if (last > pckt.last)
+		if (this->last > pckt.last)
 		{
 			return true;
 		}
-		else if (last == pckt.last)
+		else if (this->last == pckt.last)
 		{
-			return initial_connection_arrival_time > pckt.initial_connection_arrival_time;
+			return this->initial_connection_arrival_time > pckt.initial_connection_arrival_time;
 		}
 		else
 			return false;
@@ -101,7 +101,12 @@ public:
 
 	bool operator==(packet const& pckt)
 	{
-		return (arrival_time == pckt.arrival_time && connection == pckt.connection);
+		return (this->arrival_time == pckt.arrival_time && this->connection == pckt.connection);
+	}
+
+	bool operator!=(packet const& pckt)
+	{
+		return (!(*this == pckt));
 	}
 
 	void print()
@@ -129,8 +134,8 @@ public:
 		{
 			cout << " " << weight;
 		}
-		cout << " last: " << last << endl;
-		//cout << endl;
+		//cout << " last: " << last << " arrival round: " << arrival_round << " arrival time: " << arrival_time << " sum_weights: " << sum_weights_at_arrival << endl;
+		cout << endl;
 	}
 
 };
