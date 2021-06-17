@@ -35,13 +35,15 @@ void handle_wfq();
 
 void handle_all_arrivals();
 
-float get_time_of_min_last(packet p);
+float get_time_of_last(packet p);
 
 bool enqueue_packet_and_write_to_file(packet &p);
 
 void dequeue_packet();
 
-void pop_from_GPS_and_enqueue();
+void pop_from_GPS();
+
+void enqueue_and_pop_from_GPS();
 
 void set_current_event();
 
@@ -155,7 +157,7 @@ int main()
 	
 	while (!sorted_packets.empty())
 	{
-		pop_from_GPS_and_enqueue();
+		enqueue_and_pop_from_GPS();
 	}
 
 	while (!wfq.empty())
@@ -216,22 +218,6 @@ tuple<packet, string, float, bool> get_line_info(string parameters_line)
 }
 
 
-
-//save in memory list of sorted packets according to their last
-//every arrival: 
-//calculate the round and last of the new packet
-//insert the packet to the list and sort it
-
-
-
-
-
-
-
-
-
-
-
 //the list is assumed to include all of the packets currently 
 //sending messages via GPS except for the new packet arrived
 //that we calculate the round for
@@ -244,7 +230,7 @@ float calc_round(int event_time)
 	//cout << "round of last event: " << round_of_last_event << endl;
 	//cout << "time_of_last_event: " << time_of_last_event << endl;
 	
-	return (  round_of_last_event + ( (arrival_time - time_of_last_event) / sum_weights ));
+	return (  round_of_last_event + ( (event_time - time_of_last_event) / sum_weights ));
 }
 
 
@@ -266,8 +252,6 @@ float calc_sum_active_weights()
 		}
 	}
 
-	if (sum_weights <= 0) sum_weights = 1;
-
 	return sum_weights;
 }
 
@@ -278,12 +262,10 @@ void handle_wfq()
 	list<packet>::iterator it_sorted;
 
 	int finish_time = 0;
-
+	arrival_time = get<PACKET>(same_time_buffer.front()).arrival_time;
+	
 	while (!same_time_buffer.empty())
 	{
-		arrival_time = get<PACKET>(same_time_buffer.front()).arrival_time;
-
-		
 		if (wfq.empty() && !sorted_packets.empty())
 		{
 			for (it_sorted = sorted_packets.begin(); it_sorted != sorted_packets.end(); it_sorted++)
@@ -297,9 +279,9 @@ void handle_wfq()
 		if (DEPARTURE != get<TYPE>(current_event))
 		{
 			time_of_last_event = get<TIME>(current_event);
+			round_of_last_event = get<ROUND>(current_event);
 		}
 
-		round_of_last_event = get<ROUND>(current_event);
 		set_current_event();
 
 		if (DEPARTURE == get<TYPE>(current_event))
@@ -308,11 +290,10 @@ void handle_wfq()
 		}
 		else if (MIN_LAST == get<TYPE>(current_event))
 		{
-			pop_from_GPS_and_enqueue();
+			enqueue_and_pop_from_GPS();
 		}
 		else // ARRIVAL
 		{
-			//cout << "ARRIVAL AT ROUND: " << get<ROUND>(current_event) << endl;
 			handle_all_arrivals();
 		}
 	}
@@ -322,10 +303,11 @@ void handle_wfq()
 
 void update_last_and_add_packet_to_list(packet &p, float prev_pckt_last, float round_of_arrival)
 {
-	
-	p.last = max(round_of_arrival, prev_pckt_last) + p.length / p.weight;
+	p.round_of_calculation_of_last = max(round_of_arrival, prev_pckt_last);
+	p.last = p.round_of_calculation_of_last + p.length / p.weight;
 
 	umap[p.connection].connection_q.back().last = p.last;
+	umap[p.connection].connection_q.back().round_of_calculation_of_last = p.round_of_calculation_of_last;
 
 	sorted_packets.emplace_front(p);
 	sorted_packets.sort();
@@ -341,6 +323,9 @@ void handle_arrival(list<tuple<packet, string, float, bool>>::iterator info_tup_
 
 	get<PACKET>(*info_tup_iter).sum_weights_at_arrival = sum_active_weights_at_arrival;
 	get<PACKET>(*info_tup_iter).arrival_round = get<ROUND>(current_event);
+	
+
+	
 
 	/*=================================
 			take care of umap
@@ -409,17 +394,15 @@ void handle_all_arrivals()
 	//handle all of the same_time arrivals
 	for (it = same_time_buffer.begin(); it != same_time_buffer.end(); it = same_time_buffer.begin())
 	{
-		//cout << "packet last before handle arrival: " << get<PACKET>(*it).last << endl;
 		handle_arrival(it, sum_active_weights_at_arrival);
-		//cout << "packet last after handle arrival: " << get<PACKET>(*it).last << endl;
 		same_time_buffer.pop_front();
 	}
 }
 
 
-float get_time_of_min_last(packet p)
+float get_time_of_last(packet p)
 {
-	return p.arrival_time + p.sum_weights_at_arrival * (p.last - p.arrival_round);
+	return p.arrival_time + p.sum_weights_at_arrival * (p.last - p.round_of_calculation_of_last);
 }
 
 bool enqueue_packet_and_write_to_file(packet &p)
@@ -428,17 +411,17 @@ bool enqueue_packet_and_write_to_file(packet &p)
 	{
 		if (wfq.empty())
 		{
-			(p).time_of_transmission_start = max((p).arrival_time, last_departure_time);
+			p.time_of_transmission_start = max(p.arrival_time, last_departure_time);
 		}
 		else
 		{
-			(p).time_of_transmission_start = max((p).arrival_time, wfq.back().length + wfq.back().time_of_transmission_start);
+			p.time_of_transmission_start = max(p.arrival_time, wfq.back().length + wfq.back().time_of_transmission_start);
 		}
 
+		p.queued = true;
 		wfq.push(p);
-		(p).queued = true;
 		//cout << "\ncurrent time: " << get<TIME>(current_event) << endl;
-		(p).write_to_file((p).time_of_transmission_start);
+		p.write_to_file(p.time_of_transmission_start);
 
 		return true;
 	}
@@ -448,23 +431,24 @@ bool enqueue_packet_and_write_to_file(packet &p)
 	cout << "\n=====================================================================================\n" << endl;
 	*/
 
-	else return false;
+	return false;
 
 }
 
-void pop_from_GPS_and_enqueue()
+void enqueue_and_pop_from_GPS()
 {
-	string connection = sorted_packets.front().connection;
-
-	if (!umap[connection].connection_q.empty()) { umap[connection].connection_q.pop(); }
-	/*
-	cout << "\n=====================================================================================popping packet from list: " << endl;
-	sorted_packets.front().print();
-	cout << "\n=====================================================================================\n" << endl;
-	*/
-
 	enqueue_packet_and_write_to_file(sorted_packets.front());
 
+	pop_from_GPS();
+}
+
+void pop_from_GPS()
+{
+	string connection = sorted_packets.front().connection;
+	if (!umap[connection].connection_q.empty()) 
+	{
+			umap[connection].connection_q.pop();
+	}
 	sorted_packets.pop_front();
 }
 
@@ -476,7 +460,7 @@ void set_current_event()
 		departure_time = arrival_time + 1; //so departure_time > arrival_time for calculation of minimum
 	if (!sorted_packets.empty())
 	{
-		time_of_min_last = get_time_of_min_last(sorted_packets.front());
+		time_of_min_last = get_time_of_last(sorted_packets.front());
 		//cout << "time_of_min_last: " << time_of_min_last << endl;
 	}	
 	else
@@ -516,8 +500,6 @@ void set_current_event()
 		{
 			//departure time is minimum
 			get<TYPE>(current_event) = DEPARTURE;
-			get<TIME>(current_event) = departure_time;
-			//get<ROUND>(current_event) = calc_round(departure_time);
 		}
 	}
 }
@@ -525,5 +507,6 @@ void set_current_event()
 void dequeue_packet()
 {
 	last_departure_time = departure_time;
+
 	wfq.pop();
 }

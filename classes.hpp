@@ -34,6 +34,7 @@ public:
 	bool queued;
 	float sum_weights_at_arrival;
 	int time_of_transmission_start;
+	float round_of_calculation_of_last;
 
 	//default constructor
 	packet()
@@ -49,6 +50,7 @@ public:
 		sum_weights_at_arrival = DEFAULT_WEIGHT;
 		arrival_round = 0;
 		time_of_transmission_start = 0;
+		round_of_calculation_of_last = 0;
 		
 	}
 
@@ -65,6 +67,7 @@ public:
 		this->queued = false;
 		this->sum_weights_at_arrival = DEFAULT_WEIGHT;
 		this->arrival_round = 0;
+		this->round_of_calculation_of_last = 0;
 		this->time_of_transmission_start = arrival_time;
 	}
 
@@ -113,7 +116,7 @@ public:
 	{
 		cout << "\n=============" << endl;
 		cout << "QUEUED: ";
-		if (queued) cout << "true" << endl;
+		if (this->queued) cout << "true" << endl;
 		else cout << "false" << endl;
 		cout << "Length: " << length << endl;
 		cout << "Arrival Time: " << arrival_time << endl;
@@ -134,8 +137,8 @@ public:
 		{
 			cout << " " << weight;
 		}
-		//cout << " last: " << last << " arrival round: " << arrival_round << " arrival time: " << arrival_time << " sum_weights: " << sum_weights_at_arrival << endl;
-		cout << endl;
+		cout << " last: " << last << " arrival round: " << arrival_round << " last_round_calculation: " << round_of_calculation_of_last << " sum_weights: " << sum_weights_at_arrival << endl;
+		//cout << endl;
 	}
 
 };
