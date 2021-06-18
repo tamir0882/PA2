@@ -27,7 +27,8 @@ enum event_type {
 enum current_event_params {
 	TYPE,
 	TIME,
-	ROUND
+	ROUND,
+	SUM_WEIGHTS
 };
 
 

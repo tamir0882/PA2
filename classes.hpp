@@ -35,6 +35,7 @@ public:
 	float sum_weights_at_arrival;
 	int time_of_transmission_start;
 	float round_of_calculation_of_last;
+	float time_of_calculation_of_last;
 
 	//default constructor
 	packet()
@@ -51,6 +52,7 @@ public:
 		arrival_round = 0;
 		time_of_transmission_start = 0;
 		round_of_calculation_of_last = 0;
+		time_of_calculation_of_last = 0;
 		
 	}
 
@@ -68,6 +70,7 @@ public:
 		this->sum_weights_at_arrival = DEFAULT_WEIGHT;
 		this->arrival_round = 0;
 		this->round_of_calculation_of_last = 0;
+		this->time_of_calculation_of_last = arrival_time;
 		this->time_of_transmission_start = arrival_time;
 	}
 
@@ -137,8 +140,8 @@ public:
 		{
 			cout << " " << weight;
 		}
-		cout << " last: " << last << " arrival round: " << arrival_round << " last_round_calculation: " << round_of_calculation_of_last << " sum_weights: " << sum_weights_at_arrival << endl;
-		//cout << endl;
+		//cout << " last: " << last << " arrival round: " << arrival_round << " last_round_calculation: " << round_of_calculation_of_last << " weight: " << weight << endl;
+		cout << endl;
 	}
 
 };
