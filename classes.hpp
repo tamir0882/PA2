@@ -25,17 +25,16 @@ class packet
 public:
 	int length;
 	int arrival_time;
-	float arrival_round;
+	double arrival_round;
 	int initial_connection_arrival_time;
-	float weight;
+	double weight;
 	bool weight_given;
 	string connection;
-	float last;
+	double last;
 	bool queued;
-	float sum_weights_at_arrival;
 	int time_of_transmission_start;
-	float round_of_calculation_of_last;
-	float time_of_calculation_of_last;
+	double round_of_calculation_of_last;
+	double time_of_calculation_of_last;
 
 	//default constructor
 	packet()
@@ -48,7 +47,6 @@ public:
 		last = NOT_CALCULATED;
 		weight_given = false;
 		queued = false;
-		sum_weights_at_arrival = DEFAULT_WEIGHT;
 		arrival_round = 0;
 		time_of_transmission_start = 0;
 		round_of_calculation_of_last = 0;
@@ -57,7 +55,7 @@ public:
 	}
 
 	//parameterized constructor
-	packet(int length, int arrival_time, float weight, string connection, bool weight_given)
+	packet(int length, int arrival_time, double weight, string connection, bool weight_given)
 	{
 		this->length = length;
 		this->arrival_time = arrival_time;
@@ -67,10 +65,8 @@ public:
 		this->weight_given = weight_given;
 		this->last = 0;
 		this->queued = false;
-		this->sum_weights_at_arrival = DEFAULT_WEIGHT;
 		this->arrival_round = 0;
 		this->round_of_calculation_of_last = 0;
-		this->time_of_calculation_of_last = arrival_time;
 		this->time_of_transmission_start = arrival_time;
 	}
 
@@ -105,16 +101,19 @@ public:
 			return false;
 	}
 
+	//eq operator
 	bool operator==(packet const& pckt)
 	{
 		return (this->arrival_time == pckt.arrival_time && this->connection == pckt.connection);
 	}
 
+	//ne operatopr
 	bool operator!=(packet const& pckt)
 	{
 		return (!(*this == pckt));
 	}
 
+	//print method - for debugging
 	void print()
 	{
 		cout << "\n=============" << endl;
@@ -151,22 +150,22 @@ class umap_val
 {
 public:
 	int initial_arrival_time;
-	float weight;
+	double weight;
 	queue<packet> connection_q;
 
 	//default constructor 
 	umap_val()
 	{
-		initial_arrival_time = 0;
-		weight = DEFAULT_WEIGHT;
+		this->initial_arrival_time = 0;
+		this->weight = DEFAULT_WEIGHT;
 	}
 
 	//parameterized contructor
-	umap_val(float weight, packet p)
+	umap_val(double weight, packet p)
 	{
 		this->initial_arrival_time = p.initial_connection_arrival_time;
 		this->weight = weight;
-		connection_q.push(p);
+		this->connection_q.push(p);
 	}
 };
 

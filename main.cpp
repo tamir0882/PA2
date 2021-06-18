@@ -20,50 +20,125 @@ using namespace std;
 
 
 
-
+/*input: global containers
+* a line read from the input file
+*output:
+* a tupple containing all information in the correct type
+*/
 tuple<packet, string, double, bool> get_line_info(string parameters_line);
 
+
+/*input: global containers
+* time of a certain event
+*output:
+* the corresponding round of the event
+*/
 double calc_round(int event_time);
 
+
+/*input: global containers
+*
+*output:
+* the sum of active weights at the current event
+*/
 double calc_sum_active_weights();
 
-void update_last_and_add_packet_to_list(packet &p, double prev_pckt_last, double round_of_arrival);
 
+/*inputs:
+* an arriving packet,
+* the last of the previous packet in the same connection,
+*
+* the function calculates the last of the packet and inserts the arriving packet to the GPS container - sorted_packets - while
+* also updating the packet in the connection_q accordingly
+*/
+void update_last_and_add_packet_to_list(packet &p, double prev_pckt_last);
+
+
+/*input: global containers
+* a tuple as created by get_line_info containing all valuable information about the arrival
+*
+* the function handles the umap container and inserts connections to it if they are not already in it.
+* if the connection exists already in the umap, we simply push the new packet to the connection queue,
+* while updating the time of initial arrival of the packet, and also updating the weight as needed
+*  - update weight of connection if a new weight was assigned, or change the weight of the packet
+* to be the same as the connection weight.
+*
+* finaly - call function update_last_and_add_packet_to_list.
+*
+*/
 void handle_arrival(list<tuple<packet, string, double, bool>>::iterator info_tup_iter);
 
+
+/*input: global containers
+*
+* this function is a wrapper to all the other functions for handling the wfq algorithm
+*/
 void handle_wfq();
 
+
+/*input: global containers
+* this function is a wrapper to handle_arrival for handling all of the arrivals from different connections at the same time.
+*/
 void handle_all_arrivals();
 
+
+/*input: global containers
+* last of a packet
+* output:
+* the real time of the departure of the packet according to GPS
+*/
 double get_time_of_last(double last);
 
+
+/*input: global containers
+* a packet
+* output:
+* indicator if before the call to the function the packet wasn't already queued. true if this is the case.
+*
+* the function inserts a packet to the wfq and writes it to the file only in case it wasn't already queued.
+*/
 bool enqueue_packet_and_write_to_file(packet &p);
 
+
+/*input: global containers
+*
+* this function simply updates the time of last departure, and pops the departuring packet from the wfq.
+*/
 void dequeue_packet();
 
+
+/*input: global containers
+*
+* the function pops a packet that recetly finished processing according to GPS.
+*/
 void pop_from_GPS();
 
+
+/*input: global containers
+*
+* the function is a wrapper to enqueue_packet_and_write_to_file and pop_from_GPS.
+*/
 void enqueue_and_pop_from_GPS();
 
+
+/*input: global containers
+*
+* this function checks all possible events and sets the current_event tuple as the next one (with minimal time\round)
+*
+*/
 void set_current_event();
 
-
-double round_current = 0;
-double arrival_round = 0;
-
-
-tuple<double, double> arrival_state;
 
 
 int departure_time = 0;
 int last_departure_time = 0;
 int arrival_time = 0;
+
 double time_of_min_last = 0;
 tuple<int, double, double, double>current_event = make_tuple(ARRIVAL, 0, 0, 1);
 tuple<int, double, double, double>last_event = make_tuple(ARRIVAL, 0, 0, 1);
 
 
-tuple<int, int>event_tup;
 queue<packet> wfq;
 unordered_map <string, umap_val> umap;
 list<packet> sorted_packets;
@@ -72,31 +147,13 @@ list<tuple<packet, string, double, bool>> same_time_buffer;
 
 
 
-
-
-
 int main()
 {
 	
-	string connection_designator, parameters_line; 
-	packet pckt;
-	umap_val u_val;
-
-	double weight = DEFAULT_WEIGHT;
-	double prev_pckt_last = 0;
-
+	string parameters_line; 
 	packet last_same_time_packet;
-
 	tuple<packet, string, double, bool> info_tup;
-
-	list<tuple<packet, string, double, bool>>::iterator it_same_time;
-
-	tuple<int, packet> dep_tup;
-
-
-
-	//ifstream in("my_in.txt");
-	//auto cinbuf = cin.rdbuf(in.rdbuf()); //save and redirect
+	list<tuple<packet, string, double, bool>>::iterator it;
 
 	ofstream out("out.txt");
 	auto coutbuf = cout.rdbuf(out.rdbuf()); //save and redirect
@@ -134,7 +191,29 @@ int main()
 		}
 		cout << "\n========================================\n" << endl;
 		*/
-
+		/*
+		cout << "before handle_wfq, queue is: ";
+		if (wfq.empty())
+		{
+			cout << "EMPTY" << endl;
+		}
+		else
+		{
+			cout << "FULL" << endl;
+			cout << "front of wfq:" << endl;
+			wfq.front().print();
+			if (wfq.back() != wfq.front())
+			{
+				cout << "back of wfq:" << endl;
+				wfq.back().print();
+			}
+		}
+		cout << "same_time_buffer contains:" << endl;
+		for (it = same_time_buffer.begin(); it != same_time_buffer.end(); it++)
+		{
+			get<PACKET>(*it).print();
+		}
+		*/
 
 		handle_wfq();
 
@@ -150,7 +229,7 @@ int main()
 
 	/*===========================================================================
 	   here - we finished reading the arrivals from the file and now we need
-	   to simply finish processing all the remaining packets in our database.
+	   to simply finish processing all the remaining packets in our containers.
 	===========================================================================*/
 	
 	if (!same_time_buffer.empty())
@@ -180,7 +259,6 @@ int main()
 
 
 
-
 tuple<packet, string, double, bool> get_line_info(string parameters_line)
 {
 	stringstream stream(parameters_line);
@@ -188,8 +266,10 @@ tuple<packet, string, double, bool> get_line_info(string parameters_line)
 	int arrival_time = 0;
 	int length = 0;
 	packet pckt;
-	double weight = DEFAULT_WEIGHT;
+	double weight = 0;
 	bool update_weight = false;
+
+	weight = DEFAULT_WEIGHT;
 
 	//store arrival time to str_current, then convert it to integer
 	stream >> str_current;
@@ -228,15 +308,8 @@ tuple<packet, string, double, bool> get_line_info(string parameters_line)
 }
 
 
-//the list is assumed to include all of the packets currently 
-//sending messages via GPS except for the new packet arrived
-//that we calculate the round for
 double calc_round(int event_time)
 {
-	double sum_weights = 0;
-	
-	sum_weights = calc_sum_active_weights();
-
 	//cout << "round of last event: " << get<ROUND>(last_event) << endl;
 	//cout << "get<TIME>(last_event): " << get<TIME>(last_event) << endl;
 
@@ -248,11 +321,10 @@ double calc_round(int event_time)
 	cout << "x = " << (event_time - get<TIME>(last_event)) << " last round = " << get<ROUND>(last_event) << endl;
 	*/
 
+	//return (  get<ROUND>(last_event) + ( (event_time - get<TIME>(last_event)) / calc_sum_active_weights()));
 
-
-	return (  get<ROUND>(last_event) + ( (event_time - get<TIME>(last_event)) / calc_sum_active_weights()));
+	return (get<ROUND>(last_event) + ((event_time - get<TIME>(last_event)) / get<SUM_WEIGHTS>(last_event)));
 }
-
 
 double calc_sum_active_weights()  
 {
@@ -287,30 +359,27 @@ void handle_wfq()
 {
 	list<tuple<packet, string, double, bool>>::iterator it_info_tup;
 	list<packet>::iterator it_sorted;
-
-	arrival_time = get<PACKET>(same_time_buffer.front()).arrival_time;
 	
 	while (!same_time_buffer.empty())
 	{
+		arrival_time = get<PACKET>(same_time_buffer.front()).arrival_time;
+
 		if (wfq.empty() && !sorted_packets.empty())
 		{
 			for (it_sorted = sorted_packets.begin(); it_sorted != sorted_packets.end(); it_sorted++)
 			{
+				//cout << "wfq is empty, outside of the if, arrival time of packet: " << it_sorted->arrival_time << endl;
 				//enqueue_packet will push the next packet to the queue if it wasn't pushed already, 
 				//and returns a bool variable that states wheather the packet was pushed by the function now or not
-				if (enqueue_packet_and_write_to_file(sorted_packets.front()))
+				if (enqueue_packet_and_write_to_file(*it_sorted))
 				{
-					//cout << "wfq empty, pushed packet to wfq: " << endl;
-					//wfq.back().print();
 					break; //will push only the next packet in line to the wfq
 				}
 			}
 		}
 
 		/*
-		cout << "\nchecking if need to update last event parameters:" << endl;
-			
-		cout << "last event was: ";
+		cout << "\nlast event was: ";
 		if (get<TYPE>(last_event) == ARRIVAL)
 		{
 			cout << "ARRIVAL ";
@@ -318,6 +387,10 @@ void handle_wfq()
 		else if(get<TYPE>(last_event) == MIN_LAST)
 		{
 			cout << "MIN_LAST ";
+		}
+		else
+		{
+			cout << "DEPARTURE ";
 		}
 		cout << "at time = " << get<TIME>(last_event) << ", round = " << get<ROUND>(last_event) << ", SUM_WEIGHTS = " << get<SUM_WEIGHTS>(last_event) << endl;
 
@@ -330,17 +403,11 @@ void handle_wfq()
 		{
 			cout << "MIN_LAST ";
 		}
-		cout << "at time = " << get<TIME>(current_event) << ", round = " << get<ROUND>(current_event) << ", SUM_WEIGHTS = " << get<SUM_WEIGHTS>(current_event) << endl;
-			
-
-		if (get<TIME>(last_event) <= get<TIME>(current_event))
+		else
 		{
-			cout << "updating!" << endl;
-			get<TYPE>(last_event) = get<TYPE>(current_event);
-			get<TIME>(last_event) = get<TIME>(current_event);
-			get<ROUND>(last_event) = get<ROUND>(current_event);
-			get<SUM_WEIGHTS>(last_event) = get<SUM_WEIGHTS>(current_event);
+			cout << "DEPARTURE ";
 		}
+		cout << "at time = " << get<TIME>(current_event) << ", round = " << get<ROUND>(current_event) << ", SUM_WEIGHTS = " << get<SUM_WEIGHTS>(current_event) << endl;
 		*/
 
 		get<TYPE>(last_event) = get<TYPE>(current_event);
@@ -370,10 +437,9 @@ void handle_wfq()
 }
 
 
-
-void update_last_and_add_packet_to_list(packet &p, double prev_pckt_last, double round_of_arrival)
+void update_last_and_add_packet_to_list(packet &p, double prev_pckt_last)
 {
-	p.round_of_calculation_of_last = max(round_of_arrival, prev_pckt_last);
+	p.round_of_calculation_of_last = max(p.arrival_round, prev_pckt_last);
 	p.last = p.round_of_calculation_of_last + p.length / p.weight;
 
 	umap[p.connection].connection_q.back().last = p.last;
@@ -391,8 +457,6 @@ void handle_arrival(list<tuple<packet, string, double, bool>>::iterator info_tup
 	//the value QUEUE_EMPTY indicates that there were no packets 
 	//in the connection_q at the time the new packet arrived
 	
-
-	get<PACKET>(*info_tup_iter).sum_weights_at_arrival = get<SUM_WEIGHTS>(current_event);
 	get<PACKET>(*info_tup_iter).arrival_round = get<ROUND>(current_event);
 	
 	/*=================================
@@ -445,7 +509,7 @@ void handle_arrival(list<tuple<packet, string, double, bool>>::iterator info_tup
 	/*============================================
 			take care of sorted packets list
 	  ============================================*/
-	update_last_and_add_packet_to_list(get<PACKET>(*info_tup_iter), prev_pckt_last, get<PACKET>(*info_tup_iter).arrival_round);
+	update_last_and_add_packet_to_list(get<PACKET>(*info_tup_iter), prev_pckt_last);
 
 	//cout << "packet at front of connection q:" << endl;
 	//umap[get<CONNECTION_DESIGNATOR>(*info_tup_iter)].connection_q.front().print();
@@ -478,6 +542,7 @@ double get_time_of_last(double last)
 	return get<TIME>(last_event) + get<SUM_WEIGHTS>(last_event) * (last - get<ROUND>(last_event));
 }
 
+
 bool enqueue_packet_and_write_to_file(packet &p)
 {
 	if (p.queued == false)
@@ -492,6 +557,7 @@ bool enqueue_packet_and_write_to_file(packet &p)
 		}
 
 		p.queued = true;
+
 		wfq.push(p);
 		//cout << "\ncurrent time: " << get<TIME>(current_event) << endl;
 		p.write_to_file(p.time_of_transmission_start);
@@ -508,6 +574,7 @@ bool enqueue_packet_and_write_to_file(packet &p)
 
 }
 
+
 void enqueue_and_pop_from_GPS()
 {
 	if (enqueue_packet_and_write_to_file(sorted_packets.front()))
@@ -519,23 +586,29 @@ void enqueue_and_pop_from_GPS()
 	pop_from_GPS();
 }
 
+
+
 void pop_from_GPS()
 {
-
 	//cout << "pop packet from GPS at time: " << get<TIME>(current_event) << " and round: " << get<ROUND>(current_event) << endl;
 	//sorted_packets.front().print();
 
 	umap[sorted_packets.front().connection].connection_q.pop();
 
 	sorted_packets.pop_front();
+
+	get<SUM_WEIGHTS>(current_event) = calc_sum_active_weights();
 }
+
+
 
 void set_current_event()
 {
-	double departure_round = 0;
 	double min_last = 0;
+	double arrival_round = 0;
 
 
+	arrival_time = get<PACKET>(same_time_buffer.front()).arrival_time;
 	arrival_round = calc_round(arrival_time);
 
 	//cout << "arrival round = " << arrival_round << endl;
@@ -552,75 +625,23 @@ void set_current_event()
 	if (wfq.empty())
 	{
 		departure_time = arrival_time + 1; //so departure_time > arrival_time
-		departure_round = min_last + 1;
-
 	}
 	else
 	{
 		departure_time = wfq.front().time_of_transmission_start + wfq.front().length;
-		departure_round = calc_round(departure_time);
 		//cout << "departure_round = calc_round = " << departure_round << endl;
 	}
-/*
-	if (!wfq.empty())
-	{
-		departure_time = wfq.front().time_of_transmission_start + wfq.front().length;
-	}
-	else
-	{
-		departure_time = arrival_time + 1; //so departure_time > arrival_time for calculation of minimum
-	}
-	if (!sorted_packets.empty())
-	{
-		time_of_min_last = get_time_of_last(sorted_packets.front());
-		//cout << "time_of_min_last: " << time_of_min_last << endl;
-	}
-	else
-	{
-		time_of_min_last = arrival_time + 1; //so time_of_min_last > arrival_time for calculation of minimum
-	}
-
-	if (arrival_time < departure_time)
-	{
-		if (arrival_time < time_of_min_last)
-		{
-			//arrival time is minimum
-			get<TYPE>(current_event) = ARRIVAL;
-			get<SUM_WEIGHTS>(current_event) = calc_sum_active_weights();
-			get<TIME>(current_event) = arrival_time;
-			get<ROUND>(current_event) = calc_round(arrival_time);
-		}
-		else if (time_of_min_last < departure_time)
-		{
-			//min last is minimum
-			get<TYPE>(current_event) = MIN_LAST;
-			get<SUM_WEIGHTS>(current_event) = calc_sum_active_weights();
-			get<TIME>(current_event) = time_of_min_last;
-			get<ROUND>(current_event) = sorted_packets.front().last;
-		}
-	}
-	else
-	{
-		if (time_of_min_last < departure_time)
-		{
-			//min last is minimum
-			get<TYPE>(current_event) = MIN_LAST;
-			get<SUM_WEIGHTS>(current_event) = calc_sum_active_weights();
-			get<TIME>(current_event) = time_of_min_last;
-			get<ROUND>(current_event) = sorted_packets.front().last;
-		}
-		else
-		{
-			//departure time is minimum
-			get<TYPE>(current_event) = DEPARTURE;
-		}
-	}
-*/
 
 
-	if (arrival_time < departure_time && arrival_round < min_last)
+	if (departure_time < arrival_time)
 	{
-		//arrival time is minimum
+		//curren event is a deprture from WFQ
+		get<TYPE>(current_event) = DEPARTURE;
+	}
+
+	else if (arrival_round < min_last)
+	{
+		//current event is an arrival
 		get<TYPE>(current_event) = ARRIVAL;
 		//current event sum weights will be updated at the function handle_all_arrivals.
 		get<TIME>(current_event) = arrival_time;
@@ -628,28 +649,31 @@ void set_current_event()
 	}
 	else
 	{
-		if (min_last < departure_round)
-		{
-			//min last is minimum
-			get<TYPE>(current_event) = MIN_LAST;
-			get<SUM_WEIGHTS>(current_event) = calc_sum_active_weights();
-			get<TIME>(current_event) = get_time_of_last(min_last);
-			get<ROUND>(current_event) = min_last;
-		}
-		else
-		{
-			//departure is minimum
-			get<TYPE>(current_event) = DEPARTURE;
-		}
+		//curren event is a deprture from GPS
+		get<TYPE>(current_event) = MIN_LAST;
+		//current event sum weights will be updated at the function pop_from_GPS.
+		get<TIME>(current_event) = get_time_of_last(min_last);
+		get<ROUND>(current_event) = min_last;
 	}
-
 
 }
 
+
 void dequeue_packet()
 {
+	list<packet>::iterator it_sorted;
+	/*
+	cout << "\nentered dequeue_packets" << endl;
+	cout << "pop packet:" << endl;
+	wfq.front().print();
+	*/
 	last_departure_time = departure_time;
-	//cout << "pop packet from wfq:" << endl;
-	//wfq.front().print();
+
 	wfq.pop();
+	/*
+	if (wfq.empty() && !sorted_packets.empty())
+	{
+		cout << "wfq is empty. front of GPS:" << endl;
+		sorted_packets.front().print();
+	}*/
 }
