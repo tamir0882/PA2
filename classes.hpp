@@ -34,7 +34,6 @@ public:
 	bool queued;
 	int time_of_transmission_start;
 	double round_of_calculation_of_last;
-	double time_of_calculation_of_last;
 
 	//default constructor
 	packet()
@@ -50,7 +49,6 @@ public:
 		arrival_round = 0;
 		time_of_transmission_start = 0;
 		round_of_calculation_of_last = 0;
-		time_of_calculation_of_last = 0;
 		
 	}
 

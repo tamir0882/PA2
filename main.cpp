@@ -134,7 +134,7 @@ int departure_time = 0;
 int last_departure_time = 0;
 int arrival_time = 0;
 
-double time_of_min_last = 0;
+
 tuple<int, double, double, double>current_event = make_tuple(ARRIVAL, 0, 0, 1);
 tuple<int, double, double, double>last_event = make_tuple(ARRIVAL, 0, 0, 1);
 
