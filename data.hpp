@@ -18,7 +18,6 @@ enum info_tuple_index {
 
 
 enum event_type {
-
 	ARRIVAL,
 	MIN_LAST,
 	DEPARTURE
